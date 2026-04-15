@@ -16,8 +16,16 @@ An AI-powered news web app that fetches real-time news using a custom backend AP
 - Backend: Node.js, Express
 - API: News API
 
+
 ## 📸 Screenshots
-(Add your project screenshot here)
+
+![Normal](Normal.png)
+
+![Dark Mode](Dark mode.png)
+
+![Saved](Saved.png)
+
+![Search](Search.png)
 
 ## 🚀 Run Locally
 
