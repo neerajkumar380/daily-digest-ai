@@ -1,3 +1,5 @@
+🚀 Live Demo: Run Locally
+(http://localhost:5000)
 # daily-digest-ai
 AI powered news app
 # 📰 Daily Digest AI
