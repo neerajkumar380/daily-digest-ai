@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Daily Digest</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="top-bar">
+    <input type="text" id="search" placeholder="Search news..." />
+    <button onclick="searchNews()">Search</button>
+    <button onclick="loadSavedNews()">Saved News</button>
+    <button onclick="toggleDarkMode()" id="darkModeBtn">🌙 Dark Mode</button>
+  </div>
+
+  <div class="categories">
+    <button onclick="setCategory('sports')">Sports</button>
+    <button onclick="setCategory('technology')">Tech</button>
+    <button onclick="setCategory('business')">Business</button>
+    <button onclick="setCategory('entertainment')">Entertainment</button>
+  </div>
+
+  <nav>
+    <h1>The Daily Digest</h1>
+    <p>Your daily news platform</p>
+  </nav>
+
+  <main>
+    <div class="action-bar" id="actionBar" style="display: none;">
+      <button onclick="goHome()" class="home-btn">🏠 Back to Home</button>
+    </div>
+
+    <section id="news-container"></section>
+
+    <div class="load-more-box" id="loadMoreBox">
+      <button onclick="loadMoreNews()">Load More</button>
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
