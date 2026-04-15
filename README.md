@@ -29,6 +29,8 @@ An AI-powered news web app that fetches real-time news using a custom backend AP
 
 ![Search](Search.png)
 
+🌐 Real-time news fetched using News API
+
 ## 🚀 Run Locally
 
 ```bash
