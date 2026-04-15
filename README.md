@@ -21,7 +21,7 @@ An AI-powered news web app that fetches real-time news using a custom backend AP
 
 ![Normal](Normal.png)
 
-![Dark Mode](Dark mode.png)
+![Dark Mode](dark-mode.png)
 
 ![Saved](Saved.png)
 
