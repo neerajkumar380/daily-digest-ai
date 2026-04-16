@@ -22,7 +22,8 @@ const savedNewsButton = Array.from(document.querySelectorAll("button")).find(
 );
 
 const darkModeButton = Array.from(document.querySelectorAll("button")).find(
-  (btn) => btn.textContent.trim().toLowerCase().includes("dark")
+  (btn) => btn.textContent.trim().toLowerCase().includes("dark") ||
+           btn.textContent.trim().toLowerCase().includes("light")
 );
 
 const categoryButtons = Array.from(document.querySelectorAll("button")).filter(
@@ -37,14 +38,13 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSearch();
   setupCategories();
   setupSavedNewsButton();
-  loadNews();
+  loadNews(true);
 });
 
 function setupSearch() {
   if (searchButton) {
     searchButton.addEventListener("click", () => {
-      const value = searchInput ? searchInput.value.trim() : "";
-      currentQuery = value;
+      currentQuery = searchInput ? searchInput.value.trim() : "";
       currentCategory = "";
       currentPage = 1;
       showingSavedNews = false;
@@ -55,8 +55,7 @@ function setupSearch() {
   if (searchInput) {
     searchInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        const value = searchInput.value.trim();
-        currentQuery = value;
+        currentQuery = searchInput.value.trim();
         currentCategory = "";
         currentPage = 1;
         showingSavedNews = false;
@@ -90,9 +89,12 @@ function setupSavedNewsButton() {
 
 function setupDarkMode() {
   const savedTheme = localStorage.getItem("theme");
+
   if (savedTheme === "dark") {
     document.body.classList.add("dark-mode");
     updateDarkModeButtonText(true);
+  } else {
+    updateDarkModeButtonText(false);
   }
 
   if (darkModeButton) {
@@ -158,16 +160,16 @@ async function loadNews(reset = false) {
 
     if (articles.length === 0 && currentPage === 1) {
       newsContainer.innerHTML = `<p style="text-align:center;">No news found.</p>`;
-      loadMoreBox.style.display = "none";
+      if (loadMoreBox) loadMoreBox.style.display = "none";
     } else {
-      loadMoreBox.style.display = articles.length > 0 ? "block" : "none";
+      if (loadMoreBox) loadMoreBox.style.display = articles.length > 0 ? "block" : "none";
     }
 
-    actionBar.style.display = "none";
+    if (actionBar) actionBar.style.display = "none";
   } catch (error) {
     console.error("Load news error:", error);
     newsContainer.innerHTML = `<p style="text-align:center; color:red;">Error loading news 😔</p>`;
-    loadMoreBox.style.display = "block";
+    if (loadMoreBox) loadMoreBox.style.display = "block";
   }
 }
 
@@ -184,7 +186,6 @@ function renderArticles(articles) {
 
     const sourceName = article.source?.name || "Unknown Source";
     const description = article.description || "No description available.";
-    const content = article.content || description;
     const title = article.title || "No title";
     const publishedAt = article.publishedAt
       ? new Date(article.publishedAt).toLocaleString()
@@ -194,12 +195,16 @@ function renderArticles(articles) {
       ${image}
       <div class="news-content">
         <h3 class="news-title">${escapeHtml(title)}</h3>
+
         <p class="news-meta"><strong>Source:</strong> ${escapeHtml(sourceName)}</p>
         <p class="news-meta"><strong>Date:</strong> ${escapeHtml(publishedAt)}</p>
+
         <p class="news-desc">${escapeHtml(description)}</p>
 
         <div class="news-actions">
-          <a class="read-more-btn" href="${escapeHtml(article.url || "#")}" target="_blank" rel="noopener noreferrer">Read More</a>
+          <a class="read-more-btn" href="${escapeHtml(article.url || "#")}" target="_blank" rel="noopener noreferrer">
+            Read More
+          </a>
           <button class="save-btn" data-index="${index}">Save</button>
           <button class="summary-btn" data-index="${index}">AI Summary</button>
         </div>
@@ -252,16 +257,17 @@ function saveArticle(article) {
 
 function renderSavedNews() {
   const saved = JSON.parse(localStorage.getItem("savedNews")) || [];
-  actionBar.style.display = "block";
+
+  if (actionBar) actionBar.style.display = "block";
 
   if (saved.length === 0) {
     newsContainer.innerHTML = `<p style="text-align:center;">No saved news yet.</p>`;
-    loadMoreBox.style.display = "none";
+    if (loadMoreBox) loadMoreBox.style.display = "none";
     return;
   }
 
   renderArticles(saved);
-  loadMoreBox.style.display = "none";
+  if (loadMoreBox) loadMoreBox.style.display = "none";
 }
 
 function goHome() {
@@ -270,7 +276,7 @@ function goHome() {
   currentQuery = "";
   currentCategory = "";
   if (searchInput) searchInput.value = "";
-  actionBar.style.display = "none";
+  if (actionBar) actionBar.style.display = "none";
   loadNews(true);
 }
 
