@@ -22,15 +22,17 @@ const savedNewsButton = Array.from(document.querySelectorAll("button")).find(
 );
 
 const darkModeButton = Array.from(document.querySelectorAll("button")).find(
-  (btn) => btn.textContent.trim().toLowerCase().includes("dark") ||
-           btn.textContent.trim().toLowerCase().includes("light")
+  (btn) => {
+    const text = btn.textContent.trim().toLowerCase();
+    return text.includes("dark") || text.includes("light");
+  }
 );
 
 const categoryButtons = Array.from(document.querySelectorAll("button")).filter(
-  (btn) =>
-    ["sports", "tech", "business", "entertainment"].includes(
-      btn.textContent.trim().toLowerCase()
-    )
+  (btn) => {
+    const text = btn.textContent.trim().toLowerCase();
+    return ["sports", "tech", "business", "entertainment"].includes(text);
+  }
 );
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -72,7 +74,11 @@ function setupCategories() {
       currentQuery = "";
       currentPage = 1;
       showingSavedNews = false;
-      if (searchInput) searchInput.value = "";
+
+      if (searchInput) {
+        searchInput.value = "";
+      }
+
       loadNews(true);
     });
   });
@@ -118,6 +124,7 @@ function normalizeCategory(category) {
     business: "business",
     entertainment: "entertainment",
   };
+
   return map[category.toLowerCase()] || category.toLowerCase();
 }
 
@@ -162,10 +169,14 @@ async function loadNews(reset = false) {
       newsContainer.innerHTML = `<p style="text-align:center;">No news found.</p>`;
       if (loadMoreBox) loadMoreBox.style.display = "none";
     } else {
-      if (loadMoreBox) loadMoreBox.style.display = articles.length > 0 ? "block" : "none";
+      if (loadMoreBox) {
+        loadMoreBox.style.display = articles.length > 0 ? "block" : "none";
+      }
     }
 
-    if (actionBar) actionBar.style.display = "none";
+    if (actionBar) {
+      actionBar.style.display = "none";
+    }
   } catch (error) {
     console.error("Load news error:", error);
     newsContainer.innerHTML = `<p style="text-align:center; color:red;">Error loading news 😔</p>`;
@@ -180,16 +191,24 @@ function renderArticles(articles) {
     const card = document.createElement("div");
     card.className = "news-card";
 
-    const image = article.urlToImage
-      ? `<img src="${escapeHtml(article.urlToImage)}" alt="news image" class="news-image" onerror="this.style.display='none'">`
-      : "";
-
     const sourceName = article.source?.name || "Unknown Source";
     const description = article.description || "No description available.";
     const title = article.title || "No title";
     const publishedAt = article.publishedAt
       ? new Date(article.publishedAt).toLocaleString()
       : "Unknown date";
+
+    const fallbackImage =
+      "https://via.placeholder.com/400x220?text=No+Image";
+
+    const image = `
+      <img
+        src="${escapeHtml(article.urlToImage || fallbackImage)}"
+        alt="news image"
+        class="news-image"
+        onerror="this.src='${fallbackImage}'"
+      >
+    `;
 
     card.innerHTML = `
       ${image}
@@ -258,7 +277,9 @@ function saveArticle(article) {
 function renderSavedNews() {
   const saved = JSON.parse(localStorage.getItem("savedNews")) || [];
 
-  if (actionBar) actionBar.style.display = "block";
+  if (actionBar) {
+    actionBar.style.display = "block";
+  }
 
   if (saved.length === 0) {
     newsContainer.innerHTML = `<p style="text-align:center;">No saved news yet.</p>`;
@@ -267,7 +288,10 @@ function renderSavedNews() {
   }
 
   renderArticles(saved);
-  if (loadMoreBox) loadMoreBox.style.display = "none";
+
+  if (loadMoreBox) {
+    loadMoreBox.style.display = "none";
+  }
 }
 
 function goHome() {
@@ -275,8 +299,15 @@ function goHome() {
   currentPage = 1;
   currentQuery = "";
   currentCategory = "";
-  if (searchInput) searchInput.value = "";
-  if (actionBar) actionBar.style.display = "none";
+
+  if (searchInput) {
+    searchInput.value = "";
+  }
+
+  if (actionBar) {
+    actionBar.style.display = "none";
+  }
+
   loadNews(true);
 }
 
@@ -319,6 +350,7 @@ function showLoading() {
 
 function showToast(message) {
   if (!toast) return;
+
   toast.textContent = message;
   toast.classList.add("show");
 
@@ -329,6 +361,7 @@ function showToast(message) {
 
 function escapeHtml(value) {
   if (value === null || value === undefined) return "";
+
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
