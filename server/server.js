@@ -68,7 +68,7 @@ app.get("/news", async (req, res) => {
 });
 
 // Fallback route (important for deploy)
-app.get("*", (req, res) => {
+app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/index.html"));
 });
 
