@@ -1,241 +1,335 @@
-let category = "";
 let currentPage = 1;
-let currentView = "home";
+let currentQuery = "";
+let currentCategory = "";
+let showingSavedNews = false;
+let allArticles = [];
 
-// FETCH NEWS
-async function fetchNews(append = false) {
-  const query = document.getElementById("search").value.trim() || category || "";
-  const newsContainer = document.getElementById("news-container");
-  const loadMoreBox = document.getElementById("loadMoreBox");
-  const actionBar = document.getElementById("actionBar");
+const newsContainer = document.getElementById("news-container");
+const loadMoreBox = document.getElementById("loadMoreBox");
+const actionBar = document.getElementById("actionBar");
+const toast = document.getElementById("toast");
 
-  currentView = "home";
-  loadMoreBox.style.display = "block";
-  actionBar.style.display = "none";
+const searchInput =
+  document.querySelector('input[type="text"]') ||
+  document.querySelector("input");
 
-  if (!append) {
-    newsContainer.innerHTML = "<p style='text-align:center;'>Loading...</p>";
+const searchButton = Array.from(document.querySelectorAll("button")).find(
+  (btn) => btn.textContent.trim().toLowerCase() === "search"
+);
+
+const savedNewsButton = Array.from(document.querySelectorAll("button")).find(
+  (btn) => btn.textContent.trim().toLowerCase().includes("saved")
+);
+
+const darkModeButton = Array.from(document.querySelectorAll("button")).find(
+  (btn) => btn.textContent.trim().toLowerCase().includes("dark")
+);
+
+const categoryButtons = Array.from(document.querySelectorAll("button")).filter(
+  (btn) =>
+    ["sports", "tech", "business", "entertainment"].includes(
+      btn.textContent.trim().toLowerCase()
+    )
+);
+
+document.addEventListener("DOMContentLoaded", () => {
+  setupDarkMode();
+  setupSearch();
+  setupCategories();
+  setupSavedNewsButton();
+  loadNews();
+});
+
+function setupSearch() {
+  if (searchButton) {
+    searchButton.addEventListener("click", () => {
+      const value = searchInput ? searchInput.value.trim() : "";
+      currentQuery = value;
+      currentCategory = "";
+      currentPage = 1;
+      showingSavedNews = false;
+      loadNews(true);
+    });
   }
 
-  try {
-    const res = await fetch(
-      `http://localhost:5000/news?q=${encodeURIComponent(query)}&page=${currentPage}&t=${Date.now()}`
-    );
-    const data = await res.json();
+  if (searchInput) {
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const value = searchInput.value.trim();
+        currentQuery = value;
+        currentCategory = "";
+        currentPage = 1;
+        showingSavedNews = false;
+        loadNews(true);
+      }
+    });
+  }
+}
 
-    if (!append) {
+function setupCategories() {
+  categoryButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      currentCategory = normalizeCategory(btn.textContent.trim());
+      currentQuery = "";
+      currentPage = 1;
+      showingSavedNews = false;
+      if (searchInput) searchInput.value = "";
+      loadNews(true);
+    });
+  });
+}
+
+function setupSavedNewsButton() {
+  if (!savedNewsButton) return;
+
+  savedNewsButton.addEventListener("click", () => {
+    showingSavedNews = true;
+    renderSavedNews();
+  });
+}
+
+function setupDarkMode() {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+    updateDarkModeButtonText(true);
+  }
+
+  if (darkModeButton) {
+    darkModeButton.addEventListener("click", () => {
+      const isDark = document.body.classList.toggle("dark-mode");
+      localStorage.setItem("theme", isDark ? "dark" : "light");
+      updateDarkModeButtonText(isDark);
+    });
+  }
+}
+
+function updateDarkModeButtonText(isDark) {
+  if (!darkModeButton) return;
+  darkModeButton.textContent = isDark ? "☀ Light Mode" : "🌙 Dark Mode";
+}
+
+function normalizeCategory(category) {
+  const map = {
+    tech: "technology",
+    sports: "sports",
+    business: "business",
+    entertainment: "entertainment",
+  };
+  return map[category.toLowerCase()] || category.toLowerCase();
+}
+
+async function loadNews(reset = false) {
+  try {
+    showLoading();
+
+    if (reset) {
+      allArticles = [];
       newsContainer.innerHTML = "";
     }
 
-    if (!data.articles || data.articles.length === 0) {
-      if (!append) {
-        newsContainer.innerHTML = "<p style='text-align:center;'>No news found 😢</p>";
-      }
-      return;
+    const params = new URLSearchParams();
+    params.append("page", currentPage);
+
+    if (currentQuery) {
+      params.append("q", currentQuery);
     }
 
-    data.articles.forEach((article) => {
-      newsContainer.appendChild(createNewsCard(article, false));
-    });
-  } catch (error) {
-    console.log("Error:", error);
-    if (!append) {
-      newsContainer.innerHTML =
-        "<p style='text-align:center; color:red;'>Error loading news 😢</p>";
+    if (currentCategory) {
+      params.append("category", currentCategory);
     }
+
+    const response = await fetch(`/news?${params.toString()}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to fetch news");
+    }
+
+    const articles = Array.isArray(data.articles) ? data.articles : [];
+
+    if (reset) {
+      allArticles = [...articles];
+    } else {
+      allArticles = [...allArticles, ...articles];
+    }
+
+    renderArticles(allArticles);
+
+    if (articles.length === 0 && currentPage === 1) {
+      newsContainer.innerHTML = `<p style="text-align:center;">No news found.</p>`;
+      loadMoreBox.style.display = "none";
+    } else {
+      loadMoreBox.style.display = articles.length > 0 ? "block" : "none";
+    }
+
+    actionBar.style.display = "none";
+  } catch (error) {
+    console.error("Load news error:", error);
+    newsContainer.innerHTML = `<p style="text-align:center; color:red;">Error loading news 😔</p>`;
+    loadMoreBox.style.display = "block";
   }
 }
 
-// CREATE CARD
-function createNewsCard(article, isSavedView = false) {
-  const card = document.createElement("div");
-  card.classList.add("card");
+function renderArticles(articles) {
+  newsContainer.innerHTML = "";
 
-  card.innerHTML = `
-    <a href="${article.url}">
-      <img
-        class="news-image"
-        src="${article.urlToImage || "https://via.placeholder.com/300x180"}"
-        alt="news image"
-      />
-    </a>
+  articles.forEach((article, index) => {
+    const card = document.createElement("div");
+    card.className = "news-card";
 
-    <h2>
-      <a href="${article.url}" class="title-link">
-        ${article.title || "No title available"}
-      </a>
-    </h2>
+    const image = article.urlToImage
+      ? `<img src="${escapeHtml(article.urlToImage)}" alt="news image" class="news-image" onerror="this.style.display='none'">`
+      : "";
 
-    <p>
-      ${
-        article.description
-          ? article.description.slice(0, 100)
-          : "No description available"
-      }
-    </p>
+    const sourceName = article.source?.name || "Unknown Source";
+    const description = article.description || "No description available.";
+    const content = article.content || description;
+    const title = article.title || "No title";
+    const publishedAt = article.publishedAt
+      ? new Date(article.publishedAt).toLocaleString()
+      : "Unknown date";
 
-    <div class="btn-container">
-      <a href="${article.url}" class="read-btn">Read More</a>
-      ${
-        isSavedView
-          ? `<button class="save-btn remove-btn">Remove</button>`
-          : `<button class="save-btn">Save</button>`
-      }
-      <button class="ai-btn">✨ AI Summary</button>
-    </div>
+    card.innerHTML = `
+      ${image}
+      <div class="news-content">
+        <h3 class="news-title">${escapeHtml(title)}</h3>
+        <p class="news-meta"><strong>Source:</strong> ${escapeHtml(sourceName)}</p>
+        <p class="news-meta"><strong>Date:</strong> ${escapeHtml(publishedAt)}</p>
+        <p class="news-desc">${escapeHtml(description)}</p>
 
-    <p class="summary" style="display: none;"></p>
-  `;
+        <div class="news-actions">
+          <a class="read-more-btn" href="${escapeHtml(article.url || "#")}" target="_blank" rel="noopener noreferrer">Read More</a>
+          <button class="save-btn" data-index="${index}">Save</button>
+          <button class="summary-btn" data-index="${index}">AI Summary</button>
+        </div>
 
-  const summaryBox = card.querySelector(".summary");
-  const aiBtn = card.querySelector(".ai-btn");
+        <div class="summary-box" id="summary-${index}" style="display:none;"></div>
+      </div>
+    `;
 
-  aiBtn.addEventListener("click", () => {
-    if (summaryBox.style.display === "block") {
-      summaryBox.style.display = "none";
-      summaryBox.innerHTML = "";
-      return;
-    }
-
-    const fakeSummary =
-      (
-        article.description ||
-        article.content ||
-        article.title ||
-        "No content available"
-      )
-        .replace(/\[\+\d+\schars\]/g, "")
-        .slice(0, 120) + "...";
-
-    summaryBox.style.display = "block";
-    summaryBox.innerHTML = "<strong>AI Summary:</strong> " + fakeSummary;
+    newsContainer.appendChild(card);
   });
 
-  if (isSavedView) {
-    const removeBtn = card.querySelector(".remove-btn");
-    removeBtn.addEventListener("click", () => removeArticle(article.url));
-  } else {
-    const saveBtn = card.querySelector(".save-btn");
-    saveBtn.addEventListener("click", () => saveArticle(article));
-  }
-
-  return card;
+  attachCardEvents(articles);
 }
 
-// SEARCH
-function searchNews() {
-  currentPage = 1;
-  category = "";
-  fetchNews(false);
+function attachCardEvents(articles) {
+  const saveButtons = document.querySelectorAll(".save-btn");
+  const summaryButtons = document.querySelectorAll(".summary-btn");
+
+  saveButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const index = Number(btn.dataset.index);
+      saveArticle(articles[index]);
+    });
+  });
+
+  summaryButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const index = Number(btn.dataset.index);
+      toggleSummary(index, articles[index]);
+    });
+  });
 }
 
-// CATEGORY FILTER
-function setCategory(cat) {
-  category = cat;
-  document.getElementById("search").value = cat;
-  currentPage = 1;
-  fetchNews(false);
-}
-
-// LOAD MORE
-function loadMoreNews() {
-  currentPage++;
-  fetchNews(true);
-}
-
-// SAVE ARTICLE
 function saveArticle(article) {
-  let saved = JSON.parse(localStorage.getItem("savedNews")) || [];
-
-  if (!saved.some((item) => item.url === article.url)) {
-    saved.push(article);
-    localStorage.setItem("savedNews", JSON.stringify(saved));
-    showToast("Saved successfully ✅");
-  } else {
-    showToast("Already saved ⚠️");
-  }
-}
-
-// LOAD SAVED NEWS
-function loadSavedNews() {
-  const newsContainer = document.getElementById("news-container");
   const saved = JSON.parse(localStorage.getItem("savedNews")) || [];
-  const loadMoreBox = document.getElementById("loadMoreBox");
-  const actionBar = document.getElementById("actionBar");
 
-  currentView = "saved";
-  newsContainer.innerHTML = "";
-  loadMoreBox.style.display = "none";
-  actionBar.style.display = "block";
+  const alreadySaved = saved.some(
+    (item) => item.title === article.title && item.url === article.url
+  );
 
-  if (saved.length === 0) {
-    newsContainer.innerHTML =
-      "<p style='text-align:center;'>No saved articles 😢</p>";
+  if (alreadySaved) {
+    showToast("This article is already saved.");
     return;
   }
 
-  saved.forEach((article) => {
-    newsContainer.appendChild(createNewsCard(article, true));
-  });
-}
-
-// REMOVE ARTICLE
-function removeArticle(url) {
-  let saved = JSON.parse(localStorage.getItem("savedNews")) || [];
-  saved = saved.filter((article) => article.url !== url);
+  saved.push(article);
   localStorage.setItem("savedNews", JSON.stringify(saved));
-  showToast("Removed successfully ❌");
-  loadSavedNews();
+  showToast("Article saved successfully.");
 }
 
-// BACK TO HOME
+function renderSavedNews() {
+  const saved = JSON.parse(localStorage.getItem("savedNews")) || [];
+  actionBar.style.display = "block";
+
+  if (saved.length === 0) {
+    newsContainer.innerHTML = `<p style="text-align:center;">No saved news yet.</p>`;
+    loadMoreBox.style.display = "none";
+    return;
+  }
+
+  renderArticles(saved);
+  loadMoreBox.style.display = "none";
+}
+
 function goHome() {
-  document.getElementById("search").value = "";
-  category = "";
+  showingSavedNews = false;
   currentPage = 1;
-  fetchNews(false);
+  currentQuery = "";
+  currentCategory = "";
+  if (searchInput) searchInput.value = "";
+  actionBar.style.display = "none";
+  loadNews(true);
 }
 
-// DARK MODE
-function toggleDarkMode() {
-  document.body.classList.toggle("dark-mode");
+function loadMoreNews() {
+  if (showingSavedNews) return;
+  currentPage += 1;
+  loadNews(false);
+}
 
-  const darkModeBtn = document.getElementById("darkModeBtn");
-  const isDark = document.body.classList.contains("dark-mode");
+function toggleSummary(index, article) {
+  const box = document.getElementById(`summary-${index}`);
+  if (!box) return;
 
-  if (isDark) {
-    localStorage.setItem("darkMode", "enabled");
-    darkModeBtn.innerText = "☀️ Light Mode";
+  if (box.style.display === "none") {
+    box.innerHTML = `
+      <strong>Summary:</strong>
+      <p>${escapeHtml(generateSimpleSummary(article))}</p>
+    `;
+    box.style.display = "block";
   } else {
-    localStorage.setItem("darkMode", "disabled");
-    darkModeBtn.innerText = "🌙 Dark Mode";
+    box.style.display = "none";
   }
 }
 
-// TOAST
+function generateSimpleSummary(article) {
+  const text =
+    article.description ||
+    article.content ||
+    "No summary available for this article.";
+
+  const cleanText = text.replace(/\s+/g, " ").trim();
+
+  if (cleanText.length <= 180) return cleanText;
+  return cleanText.slice(0, 180) + "...";
+}
+
+function showLoading() {
+  newsContainer.innerHTML = `<p style="text-align:center;">Loading news...</p>`;
+}
+
 function showToast(message) {
-  const toast = document.getElementById("toast");
-  toast.innerText = message;
+  if (!toast) return;
+  toast.textContent = message;
   toast.classList.add("show");
 
   setTimeout(() => {
     toast.classList.remove("show");
-  }, 2200);
+  }, 2500);
 }
 
-// AUTO LOAD
-window.onload = () => {
-  document.getElementById("search").value = "";
-  category = "";
-  currentPage = 1;
-  fetchNews(false);
+function escapeHtml(value) {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
-  const darkModeBtn = document.getElementById("darkModeBtn");
-
-  if (localStorage.getItem("darkMode") === "enabled") {
-    document.body.classList.add("dark-mode");
-    darkModeBtn.innerText = "☀️ Light Mode";
-  } else {
-    darkModeBtn.innerText = "🌙 Dark Mode";
-  }
-};
+window.goHome = goHome;
+window.loadMoreNews = loadMoreNews;
