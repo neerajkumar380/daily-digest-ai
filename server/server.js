@@ -1,21 +1,24 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
+const path = require("path");
 
 const app = express();
+const PORT = process.env.PORT || 5000;
+const NEWS_API_KEY = process.env.NEWS_API_KEY || "YOUR_NEWS_API_KEY";
 
 app.use(cors());
 app.use(express.json());
 
-// Yahan apni real News API key daal
-const NEWS_API_KEY = "06c7c1971c5c49d38053e6949c8f8fb2";
+// Serve frontend files
+app.use(express.static(path.join(__dirname, "../client")));
 
-// Home route
+// Home route - frontend khol dega
 app.get("/", (req, res) => {
-  res.send("Server is running 🚀");
+  res.sendFile(path.join(__dirname, "../client/index.html"));
 });
 
-// News route
+// News API route
 app.get("/news", async (req, res) => {
   try {
     const query = req.query.q?.trim();
@@ -64,6 +67,11 @@ app.get("/news", async (req, res) => {
   }
 });
 
-app.listen(5000, () => {
-  console.log("Server running on http://localhost:5000");
+// Fallback route (important for deploy)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/index.html"));
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
