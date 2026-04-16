@@ -5,71 +5,67 @@ const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const NEWS_API_KEY = process.env.NEWS_API_KEY || "YOUR_NEWS_API_KEY";
+const MEDIASTACK_API_KEY = process.env.MEDIASTACK_API_KEY;
 
 app.use(cors());
 app.use(express.json());
-
-// Serve frontend files
 app.use(express.static(path.join(__dirname, "../client")));
 
-// Home route - frontend khol dega
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/index.html"));
 });
 
-// News API route
 app.get("/news", async (req, res) => {
   try {
-    const query = req.query.q?.trim();
-    const page = parseInt(req.query.page) || 1;
+    const query = (req.query.q || "").trim();
+    const category = (req.query.category || "").trim().toLowerCase();
+    const page = parseInt(req.query.page, 10) || 1;
 
-    let response;
+    const limit = 10;
+    const offset = (page - 1) * limit;
 
-    // Homepage ke liye fresh headlines
-    if (!query || query === "") {
-      response = await axios.get("https://newsapi.org/v2/top-headlines", {
-        params: {
-          country: "us",
-          pageSize: 12,
-          page: page,
-        },
-        headers: {
-          "X-Api-Key": NEWS_API_KEY,
-        },
-      });
-    } else {
-      // Search ke liye latest matching news
-      response = await axios.get("https://newsapi.org/v2/everything", {
-        params: {
-          q: query,
-          sortBy: "publishedAt",
-          language: "en",
-          pageSize: 12,
-          page: page,
-        },
-        headers: {
-          "X-Api-Key": NEWS_API_KEY,
-        },
-      });
+    const params = {
+      access_key: MEDIASTACK_API_KEY,
+      languages: "en",
+      limit,
+      offset,
+      sort: "published_desc",
+    };
+
+    if (query) {
+      params.keywords = query;
     }
 
-    const filteredArticles = response.data.articles.filter(
-      (article) => article.title && article.url
-    );
+    if (category) {
+      params.categories = category;
+    }
 
-    res.json({
-      articles: filteredArticles,
+    const response = await axios.get("https://api.mediastack.com/v1/news", {
+      params,
     });
+
+    const articles = (response.data.data || []).map((article) => ({
+      source: {
+        id: null,
+        name: article.source || "Unknown Source",
+      },
+      author: article.author || "Unknown",
+      title: article.title || "No title",
+      description: article.description || "No description available.",
+      url: article.url || "#",
+      urlToImage: article.image || "",
+      publishedAt: article.published_at || "",
+      content: article.description || "",
+    }));
+
+    res.json({ articles });
   } catch (error) {
-    console.log("News API Error:", error.response?.data || error.message);
+    console.log(
+      "Mediastack API Error:",
+      error.response?.data || error.message
+    );
     res.status(500).json({ error: "Error fetching news" });
   }
-});
-
-// Fallback route (important for deploy)
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../client/index.html"));
 });
 
 app.listen(PORT, () => {
